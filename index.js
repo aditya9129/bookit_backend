@@ -14,10 +14,11 @@ const fs = require('fs');
 const mime = require('mime-types');
 const {S3Client, PutObjectCommand}=require('@aws-sdk/client-s3')
 const ObjectId = mongoose.Types.ObjectId;
+const BASE_URL=process.env.BASE_URL;
 require('dotenv').config();
 app.use(cors({
   credentials: true,
-  origin:'http://localhost:4000',
+  origin:`${BASE_URL}`,
 }));
 const bcryptSalt=bcrypt.genSaltSync(10);
 const jwtsecret='dfdvbgfbgfbg';
@@ -84,7 +85,7 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-app.post("/api/login", async(req, res) => {
+app.post("/login", async(req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const {email, pass } = req.body;
   const user=await User.findOne({email});
@@ -106,10 +107,10 @@ app.post("/api/login", async(req, res) => {
   }
 
 });
-app.post("/api/logout", (req, res) => {
+app.post("/logout", (req, res) => {
   res.cookie('token','').json('ok'); 
 });
-app.post("/api/place", async(req, res) => {
+app.post("/place", async(req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const { User,title,address,photos,
     desc,checkin,checkout,
@@ -135,7 +136,7 @@ app.post("/api/place", async(req, res) => {
       res.status(422).json('not ok');
     }
 });
-app.post("/api/booking", async(req, res) => {
+app.post("/booking", async(req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const { User,id,name,tele,checkin,checkout,
     guest,price ,photos} = req.body;
@@ -160,7 +161,7 @@ app.post("/api/booking", async(req, res) => {
       res.status(422).json('not ok');
     }
 });
-app.get("/api/profile",(req,res)=>{
+app.get("/profile",(req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const {token}=req.cookies;
  // console.log(res);
@@ -175,7 +176,7 @@ app.get("/api/profile",(req,res)=>{
     res.json(null);
   }
 })
-app.get('/api/allplaces',async(req,res)=>{
+app.get('/allplaces',async(req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const places = await Places.find();
   
@@ -190,13 +191,13 @@ app.get('/api/allplaces',async(req,res)=>{
   }
   
 })
-app.get('/api/place/:id',async(req,res)=>{
+app.get('/place/:id',async(req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const place = await Places.findById(req.params.id);
   console.log(place)
   res.json(place);
 })
-app.get('/api/userplaces',async (req,res)=>{
+app.get('/userplaces',async (req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const {token}=req.cookies;
   console.log(res);
@@ -213,7 +214,7 @@ app.get('/api/userplaces',async (req,res)=>{
    }
   
 })
-app.get('/api/userbookings',async (req,res)=>{
+app.get('/userbookings',async (req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const {token}=req.cookies;
   // console.log(res);
@@ -230,7 +231,7 @@ app.get('/api/userbookings',async (req,res)=>{
    }
   
 })
-app.delete('/api/place/:id', async (req, res) => {
+app.delete('/place/:id', async (req, res) => {
   try {
     const place = await Places.findByIdAndDelete(req.params.id);
 
@@ -245,7 +246,7 @@ app.delete('/api/place/:id', async (req, res) => {
   }
 });
 const photosmiddleware=multer({dest:'/tmp'})
-app.post('/api/upload',photosmiddleware.array('photos',100), async (req, res) => {
+app.post('/upload',photosmiddleware.array('photos',100), async (req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   console.log(req.body)
   const uploadedFiles = [];
