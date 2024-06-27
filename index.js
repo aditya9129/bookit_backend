@@ -16,17 +16,10 @@ const {S3Client, PutObjectCommand}=require('@aws-sdk/client-s3')
 const ObjectId = mongoose.Types.ObjectId;
 const BASE_URL=process.env.BASE_URL;
 require('dotenv').config();
-app.use(cors({
-  credentials: true,
-  origin:`${BASE_URL}`,
-}));
+app.use(cors());
 const bcryptSalt=bcrypt.genSaltSync(10);
 const jwtsecret='dfdvbgfbgfbg';
-
-
-
 const bucket = 'aditya9129-bucket'; 
-
 async function uploadToS3(filePath, originalFilename, mimetype) {
   const client = new S3Client({
     region: 'eu-north-1',
