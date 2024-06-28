@@ -14,9 +14,18 @@ const fs = require('fs');
 const mime = require('mime-types');
 const {S3Client, PutObjectCommand}=require('@aws-sdk/client-s3')
 const ObjectId = mongoose.Types.ObjectId;
-const BASE_URL=process.env.BASE_URL;
+
+
 require('dotenv').config();
-app.use(cors());
+ const allowedOrigin =   'http://localhost:5173';
+ const BASE_URL=process.env.BASE_URL || allowedOrigin;
+ const FRONT_URL=process.env.FRONT_URL;
+app.use(cors({
+  credentials: true,
+  origin:BASE_URL
+}))
+
+
 const bcryptSalt=bcrypt.genSaltSync(10);
 const jwtsecret='dfdvbgfbgfbg';
 const bucket = 'aditya9129-bucket'; 
@@ -82,7 +91,6 @@ app.post("/login", async(req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const {email, pass } = req.body;
   const user=await User.findOne({email});
-
   console.log(user);
   if(user){
     const passok=bcrypt.compareSync(pass,user.pass);
@@ -121,7 +129,6 @@ app.post("/place", async(req, res) => {
       price:price
 
     } )
-    console.log(req.body);
     try{
       await p.save();
       res.status(200).json('ok');
@@ -187,17 +194,15 @@ app.get('/allplaces',async(req,res)=>{
 app.get('/place/:id',async(req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const place = await Places.findById(req.params.id);
-  console.log(place)
   res.json(place);
 })
 app.get('/userplaces',async (req,res)=>{
   mongoose.connect(process.env.MONGO_URL);
   const {token}=req.cookies;
-  console.log(res);
    if (token) {
     
      jwt.verify(token, jwtsecret, {}, async (err, userData) => {
-       console.log(userData);
+      //  console.log(userData);
        if (err) throw err;
        const places = await Places.find({owner:userData.id})
        res.json(places);
@@ -214,7 +219,7 @@ app.get('/userbookings',async (req,res)=>{
    if (token) {
     
      jwt.verify(token, jwtsecret, {}, async (err, userData) => {
-       console.log(userData);
+      //  console.log(userData);
        if (err) throw err;
        const bookings = await Booking.find({userid:userData.id})
        res.json(bookings);
@@ -241,7 +246,6 @@ app.delete('/place/:id', async (req, res) => {
 const photosmiddleware=multer({dest:'/tmp'})
 app.post('/upload',photosmiddleware.array('photos',100), async (req, res) => {
   mongoose.connect(process.env.MONGO_URL);
-  console.log(req.body)
   const uploadedFiles = [];
   for (let i = 0; i < req.files.length; i++) {
     const { path, originalname,mimetype } = req.files[i];
@@ -259,7 +263,8 @@ app.post('/upload',photosmiddleware.array('photos',100), async (req, res) => {
 
 
 
-const PORT = 4000;
+
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
