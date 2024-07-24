@@ -18,7 +18,8 @@ const ObjectId = mongoose.Types.ObjectId;
 
 require('dotenv').config();
  const allowedOrigin =   'http://localhost:5173';
- const BASE_URL=process.env.BASE_URL || allowedOrigin;
+  // const BASE_URL=process.env.BASE_URL || allowedOrigin;
+  const BASE_URL=allowedOrigin;
  const FRONT_URL=process.env.FRONT_URL;
 app.use(cors({
   credentials: true,
@@ -65,6 +66,7 @@ app.use(express.json()); // Add this line to parse JSON bodies
 app.use(cookieParser());
 
 
+
 app.post("/register", async (req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const { name, email, pass } = req.body;
@@ -80,13 +82,23 @@ app.post("/register", async (req, res) => {
       });
       await user1.save();
       console.log(user1);
-      res.status(200).json({ message: 'Registration successful' });
+      // Generate JWT token
+      jwt.sign({ email: user1.email, id: user1._id }, jwtsecret, {}, (err, token) => {
+        if (err) throw err;
+        // Set cookie with JWT token
+        res.cookie('token', token, {
+          secure: true, 
+          sameSite: 'None',
+          httpOnly: true,
+        }).json({ message: 'Registration successful', user: user1 });
+      });
     }
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 app.post("/login", async(req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const {email, pass } = req.body;
@@ -113,8 +125,10 @@ app.post("/login", async(req, res) => {
 
 });
 app.post("/logout", (req, res) => {
-  res.cookie('token','').json('ok'); 
+  res.clearCookie('token', { path: '/' }).json('ok');
 });
+
+
 app.post("/place", async(req, res) => {
   mongoose.connect(process.env.MONGO_URL);
   const { User,title,address,photos,
@@ -282,9 +296,32 @@ app.listen(PORT, () => {
  
 
 
+// app.post("/logout", (req, res) => {
+//   res.cookie('token','').json('ok'); 
+// });
 
-
-
+// app.post("/register", async (req, res) => {
+//   mongoose.connect(process.env.MONGO_URL);
+//   const { name, email, pass } = req.body;
+//   try {
+//     let existingUser = await User.findOne({ email: email });
+//     if (existingUser) {
+//       res.status(422).json({ error: 'Email already exists' });
+//     } else {
+//       let user1 = new User({
+//         name: name,
+//         pass: bcrypt.hashSync(pass, bcrypt.genSaltSync(10)),
+//         email: email,
+//       });
+//       await user1.save();
+//       console.log(user1);
+//       res.status(200).json({ message: 'Registration successful' });
+//     }
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Internal Server Error' });
+//   }
+// });
 
 
 
