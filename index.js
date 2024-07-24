@@ -19,7 +19,7 @@ const ObjectId = mongoose.Types.ObjectId;
 require('dotenv').config();
  const allowedOrigin =   'http://localhost:5173';
    const BASE_URL=process.env.BASE_URL || allowedOrigin;
-  // const BASE_URL=allowedOrigin;
+  //  const BASE_URL=allowedOrigin;
  const FRONT_URL=process.env.FRONT_URL;
 app.use(cors({
   credentials: true,
