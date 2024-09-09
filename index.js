@@ -17,7 +17,7 @@ const Booking = require('./models/Booking');
 const app = express();
 
 // CORS configuration
-const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com', process.env.BASE_URL, 'http://localhost:5173'];
+const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com','https://aesthetic-fudge-cb772e.netlify.app',process.env.BASE_URL, 'http://localhost:5173'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
