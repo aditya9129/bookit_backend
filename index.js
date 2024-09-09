@@ -17,7 +17,7 @@ const Booking = require('./models/Booking');
 const app = express();
 
 // CORS configuration
-const allowedOrigins = [process.env.BASE_URL, 'http://localhost:5173'];
+const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com',process.env.BASE_URL, 'http://localhost:5173','https://prismatic-tartufo-a1fd61.netlify.app','https://aesthetic-fudge-cb772e.netlify.app','https://keen-kheer-dbedb3.netlify.app'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -118,7 +118,7 @@ app.post("/login", async (req, res) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        domain: process.env.NODE_ENV === 'production' ? process.env.HOST_URL : 'localhost',
+        domain:'https://bookitfrontend-s0ns.onrender.com',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       }).json({ name: user.name, email: user.email });
