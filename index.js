@@ -17,7 +17,7 @@ const Booking = require('./models/Booking');
 const app = express();
 
 // CORS configuration
-const allowedOrigins = [process.env.FRONT_URL, 'http://localhost:5173'];
+const allowedOrigins = [process.env.BASE_URL, 'http://localhost:5173'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
