@@ -216,11 +216,12 @@ app.delete('/place/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/booking", authenticateToken, async(req, res) => {
+app.post("/booking/:userId", async(req, res) => {
   const { id, name, tele, checkin, checkout, guest, price, photos } = req.body;
+  console.log({  name, tele, checkin, checkout, guest, price, photos });
   try {
     let booking = new Booking({
-      userid: req.user.id,
+      userid:req.params.userId,
       placeid: id,
       tele: tele,
       name: name,
@@ -231,22 +232,26 @@ app.post("/booking", authenticateToken, async(req, res) => {
       photos: photos,
     });
     await booking.save();
-    res.status(200).json({ message: 'Booking created successfully', booking });
+    res.status(200).json({ message: 'Booking created successfully',booking});
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-app.get('/userbookings', authenticateToken, async (req, res) => {
+app.get('/userbookings/:userId', async (req, res) => {
   try {
-    const bookings = await Booking.find({ userid: req.user.id });
+    const userId = req.params.userId; // Get the userId from the route parameters
+    console.log(`Fetching bookings for user: ${userId}`);
+
+    const bookings = await Booking.find({ userid: userId }); // Use the dynamic userId to find bookings
     res.json(bookings);
   } catch (error) {
     console.error('Error in /userbookings route:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 const photoMiddleware = multer({ dest: '/tmp' });
 app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
