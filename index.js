@@ -17,7 +17,7 @@ const Booking = require('./models/Booking');
 const app = express();
 
 // CORS configuration
-const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com',process.env.BASE_URL, 'http://localhost:5173','https://prismatic-tartufo-a1fd61.netlify.app','https://aesthetic-fudge-cb772e.netlify.app','https://keen-kheer-dbedb3.netlify.app'];
+const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com', process.env.BASE_URL, 'http://localhost:5173'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -33,7 +33,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 const bcryptSalt = bcrypt.genSaltSync(10);
-const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret';
+const jwtSecret = process.env.JWT_SECRET;
 const bucket = process.env.S3_BUCKET_NAME;
 
 mongoose.connect(process.env.MONGO_URL, {
@@ -56,7 +56,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // S3 upload function
-async function uploadToS3(filePath, originalFilename, mimetype) {
+async function uploadToS3(file) {
   const client = new S3Client({
     region: 'eu-north-1',
     credentials: {
@@ -65,15 +65,14 @@ async function uploadToS3(filePath, originalFilename, mimetype) {
     },
   });
 
-  const parts = originalFilename.split('.');
-  const ext = parts[parts.length - 1];
+  const ext = mime.extension(file.mimetype);
   const newFilename = `${Date.now()}.${ext}`;
 
   await client.send(new PutObjectCommand({
     Bucket: bucket,
-    Body: fs.readFileSync(filePath),
+    Body: fs.createReadStream(file.path),
     Key: newFilename,
-    ContentType: mimetype,
+    ContentType: file.mimetype,
     ACL: 'public-read',
   }));
 
@@ -95,7 +94,7 @@ app.post("/register", async (req, res) => {
     const token = jwt.sign({ email: newUser.email, id: newUser._id }, jwtSecret);
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     }).status(200).json({ message: 'Registration successful', user: { name: newUser.name, email: newUser.email } });
@@ -104,6 +103,7 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 app.post("/login", async (req, res) => {
   const { email, pass } = req.body;
   try {
@@ -116,65 +116,26 @@ app.post("/login", async (req, res) => {
       const token = jwt.sign({ email: user.email, id: user._id }, jwtSecret);
       res.cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        domain:'https://bookitfrontend-s0ns.onrender.com',
-        path: '/',
+        secure: true,
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       }).json({ name: user.name, email: user.email });
-      console.log('Login successful. Cookie set:', res.getHeader('Set-Cookie'));
     } else {
       res.status(422).json({ error: 'Invalid password' });
     }
   } catch (error) {
-    console.error('Login error:', error);
+    console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-// app.post("/login", async (req, res) => {
-//   const { email, pass } = req.body;
-//   try {
-//     const user = await User.findOne({ email });
-//     if (!user) {
-//       return res.status(404).json({ error: 'User not found' });
-//     }
-//     const passOk = bcrypt.compareSync(pass, user.pass);
-//     if (passOk) {
-//       const token = jwt.sign({ email: user.email, id: user._id }, jwtSecret);
-//       res.cookie('token', token, {
-//         httpOnly: true,
-//         secure: process.env.NODE_ENV === 'production',
-//         sameSite: 'none',
-//         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-//       }).json({ name: user.name, email: user.email });
-//     } else {
-//       res.status(422).json({ error: 'Invalid password' });
-//     }
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ error: 'Internal Server Error' });
-//   }
-// });
-
-// app.post("/logout", (req, res) => {
-//   res.clearCookie('token', { 
-//     httpOnly: true,
-//     secure: process.env.NODE_ENV === 'production',
-//     sameSite: 'none'
-//   }).json({ message: 'Logged out successfully' });
-// });
 
 app.post("/logout", (req, res) => {
   res.cookie('token', '', { 
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    domain: process.env.NODE_ENV === 'production' ? '.your-domain.com' : 'localhost',
-    path: '/',
-    expires: new Date(0) // This will immediately expire the cookie
+    secure: true,
+    sameSite: 'none',
+    expires: new Date(0)
   }).json({ message: 'Logged out successfully' });
-  
-  console.log('Logout successful. Cookie cleared.');
 });
 
 app.get("/profile", authenticateToken, async (req, res) => {
@@ -254,52 +215,33 @@ app.delete('/place/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-app.post("/booking", async(req, res) => {
-  mongoose.connect(process.env.MONGO_URL);
-  const { User,id,name,tele,checkin,checkout,
-    guest,price ,photos} = req.body;
-  
-    let p=new Booking({
-      userid:User._id,
-      placeid:id,
-      tele:tele,
-      name:name,
+
+app.post("/booking", authenticateToken, async(req, res) => {
+  const { id, name, tele, checkin, checkout, guest, price, photos } = req.body;
+  try {
+    let booking = new Booking({
+      userid: req.user.id,
+      placeid: id,
+      tele: tele,
+      name: name,
       checkin: checkin,
       checkout: checkout,
       guests_no: guest,
-      price:price,
-      photos:photos,
-
-    } )
-    try{
-      await p.save();
-      res.status(200).json('ok');
-    }catch{
-      res.status(422).json('not ok');
-    }
-});
-app.get('/userbookings', async (req, res) => {
-  try {
-    const token = req.cookies.token;
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    console.log('Received token:', token);
-
-    jwt.verify(token, jwtSecret, async (err, decodedToken) => {
-      if (err) {
-        console.error('Token verification failed:', err);
-        return res.status(401).json({ error: 'Invalid token' });
-      }
-
-      console.log('Decoded token:', decodedToken);
-
-      // Your existing logic to fetch bookings
-      const bookings = await Booking.find({ userid: decodedToken.id });
-      res.json(bookings);
+      price: price,
+      photos: photos,
     });
+    await booking.save();
+    res.status(200).json({ message: 'Booking created successfully', booking });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/userbookings', authenticateToken, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ userid: req.user.id });
+    res.json(bookings);
   } catch (error) {
     console.error('Error in /userbookings route:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -311,10 +253,10 @@ app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
   try {
     const uploadedFiles = [];
     for (let i = 0; i < req.files.length; i++) {
-      const { path, originalname, mimetype } = req.files[i];
-      const url = await uploadToS3(path, originalname, mimetype);
+      const file = req.files[i];
+      const url = await uploadToS3(file);
       uploadedFiles.push(url);
-      fs.unlinkSync(path);
+      fs.unlinkSync(file.path);
     }
     res.json(uploadedFiles);
   } catch (error) {
