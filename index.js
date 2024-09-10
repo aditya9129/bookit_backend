@@ -55,29 +55,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// S3 upload function
-// async function uploadToS3(file) {
-//   const client = new S3Client({
-//     region: 'eu-north-1',
-//     credentials: {
-//       accessKeyId: process.env.S3_ACCESS_KEY,
-//       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-//     },
-//   });
 
-//   const ext = mime.extension(file.mimetype);
-//   const newFilename = `${Date.now()}.${ext}`;
-
-//   await client.send(new PutObjectCommand({
-//     Bucket: bucket,
-//     Body: fs.createReadStream(file.path),
-//     Key: newFilename,
-//     ContentType: file.mimetype,
-//     ACL: 'public-read',
-//   }));
-
-//   return `https://${bucket}.s3.amazonaws.com/${newFilename}`;
-// }
 async function uploadToS3(file) {
   const client = new S3Client({
     region: 'eu-north-1',
@@ -224,9 +202,9 @@ app.get('/userplaces/:userId', async (req, res) => {
   }
 });
 
-app.delete('/place/:id', authenticateToken, async (req, res) => {
+app.delete('/place/:id/:userid', async (req, res) => {
   try {
-    const place = await Places.findOneAndDelete({ _id: req.params.id, owner: req.user.id });
+    const place = await Places.findOneAndDelete({ _id: req.params.id, owner: req.params.userid });
     if (!place) {
       return res.status(404).json({ error: 'Place not found or you do not have permission to delete it' });
     }
@@ -292,6 +270,56 @@ app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
   }
 });
 
+
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// S3 upload function
+// async function uploadToS3(file) {
+//   const client = new S3Client({
+//     region: 'eu-north-1',
+//     credentials: {
+//       accessKeyId: process.env.S3_ACCESS_KEY,
+//       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+//     },
+//   });
+
+//   const ext = mime.extension(file.mimetype);
+//   const newFilename = `${Date.now()}.${ext}`;
+
+//   await client.send(new PutObjectCommand({
+//     Bucket: bucket,
+//     Body: fs.createReadStream(file.path),
+//     Key: newFilename,
+//     ContentType: file.mimetype,
+//     ACL: 'public-read',
+//   }));
+
+//   return `https://${bucket}.s3.amazonaws.com/${newFilename}`;
+// }
 // const photoMiddleware = multer({ dest: '/tmp' });
 // app.post('/upload',photoMiddleware.array('photos',100), async (req, res) => {
 //   mongoose.connect(process.env.MONGO_URL);
@@ -318,8 +346,3 @@ app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
 //     res.status(500).json({ error: 'Error uploading files' });
 //   }
 // });
-
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
