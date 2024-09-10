@@ -17,7 +17,7 @@ const Booking = require('./models/Booking');
 const app = express();
 
 // CORS configuration
-const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com','https://aesthetic-fudge-cb772e.netlify.app',process.env.BASE_URL, 'http://localhost:5173'];
+const allowedOrigins = ['https://bookitfrontend-s0ns.onrender.com','https://aesthetic-fudge-cb772e.netlify.app','https://prismatic-tartufo-a1fd61.netlify.app',process.env.BASE_URL, 'http://localhost:5173'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -56,6 +56,28 @@ const authenticateToken = (req, res, next) => {
 };
 
 // S3 upload function
+// async function uploadToS3(file) {
+//   const client = new S3Client({
+//     region: 'eu-north-1',
+//     credentials: {
+//       accessKeyId: process.env.S3_ACCESS_KEY,
+//       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+//     },
+//   });
+
+//   const ext = mime.extension(file.mimetype);
+//   const newFilename = `${Date.now()}.${ext}`;
+
+//   await client.send(new PutObjectCommand({
+//     Bucket: bucket,
+//     Body: fs.createReadStream(file.path),
+//     Key: newFilename,
+//     ContentType: file.mimetype,
+//     ACL: 'public-read',
+//   }));
+
+//   return `https://${bucket}.s3.amazonaws.com/${newFilename}`;
+// }
 async function uploadToS3(file) {
   const client = new S3Client({
     region: 'eu-north-1',
@@ -75,10 +97,9 @@ async function uploadToS3(file) {
     ContentType: file.mimetype,
     ACL: 'public-read',
   }));
-
+  
   return `https://${bucket}.s3.amazonaws.com/${newFilename}`;
 }
-
 // Routes
 app.post("/register", async (req, res) => {
   const { name, email, pass } = req.body;
@@ -119,7 +140,7 @@ app.post("/login", async (req, res) => {
         secure: true,
         sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      }).json({ name: user.name, email: user.email });
+      }).json({ name: user.name, email: user.email ,_id:user._id });
     } else {
       res.status(422).json({ error: 'Invalid password' });
     }
@@ -148,11 +169,11 @@ app.get("/profile", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/place", authenticateToken, async (req, res) => {
-  const { title, address, photos, desc, checkin, checkout, maxguest, price } = req.body;
+app.post("/place", async (req, res) => {
+  const { User,title, address, photos, desc, checkin, checkout, maxguest, price } = req.body;
   try {
     const newPlace = new Places({
-      owner: req.user.id,
+      owner: User._id,
       title,
       address,
       photos,
@@ -193,9 +214,9 @@ app.get('/place/:id', async (req, res) => {
   }
 });
 
-app.get('/userplaces', authenticateToken, async (req, res) => {
+app.get('/userplaces/:userId', async (req, res) => {
   try {
-    const places = await Places.find({ owner: req.user.id });
+    const places = await Places.find({ owner: req.params.userId });
     res.json(places);
   } catch (error) {
     console.error(error);
@@ -252,23 +273,51 @@ app.get('/userbookings/:userId', async (req, res) => {
   }
 });
 
-
 const photoMiddleware = multer({ dest: '/tmp' });
+
 app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
   try {
+    await mongoose.connect(process.env.MONGO_URL);
     const uploadedFiles = [];
     for (let i = 0; i < req.files.length; i++) {
       const file = req.files[i];
       const url = await uploadToS3(file);
       uploadedFiles.push(url);
-      fs.unlinkSync(file.path);
     }
+    console.log(uploadedFiles);
     res.json(uploadedFiles);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error uploading files' });
+    console.error('Error in upload:', error);
+    res.status(500).json({ error: 'An error occurred during upload' });
   }
 });
+
+// const photoMiddleware = multer({ dest: '/tmp' });
+// app.post('/upload',photoMiddleware.array('photos',100), async (req, res) => {
+//   mongoose.connect(process.env.MONGO_URL);
+//   const uploadedFiles = [];
+//   for (let i = 0; i < req.files.length; i++) {
+//     const { path, originalname,mimetype } = req.files[i];
+//    const url= await uploadToS3(path,originalname,mimetype);
+//    uploadedFiles.push(url);
+//   }
+//   res.json(uploadedFiles);
+// });
+// app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
+//   try {
+//     const uploadedFiles = [];
+//     for (let i = 0; i < req.files.length; i++) {
+//       const file = req.files[i];
+//       const url = await uploadToS3(file);
+//       uploadedFiles.push(url);
+//       fs.unlinkSync(file.path);
+//     }
+//     res.json(uploadedFiles);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Error uploading files' });
+//   }
+// });
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
